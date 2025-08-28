@@ -1,0 +1,6 @@
+{
+  "rules": {
+    "autoAttach": true,
+    "activeRules": ["nextjs-app-router-supabase-auth"]
+  }
+}
