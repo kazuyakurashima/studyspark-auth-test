@@ -43,9 +43,9 @@ npm run lint    # ESLint実行
 ### バックエンド・認証
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: 
-  - Supabase Auth（保護者・指導者用）
-  - @supabase/auth-helpers-nextjs（公式ヘルパー）
-  - カスタム認証（生徒用 - Supabase Auth拡張）
+  - Supabase Auth（保護者・指導者・管理者用）
+  - @supabase/ssr（最新の公式SSRライブラリ）
+  - カスタム認証（生徒用 - 仮想メールアドレス方式）
 - **Session Management**: 
   - Cookieベース（httpOnly, secure, sameSite）
   - Server-side認証状態管理
@@ -68,43 +68,70 @@ studyspark-auth-test/
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx         # Server Component（認証チェック）
 │   │   │   └── page.tsx           # Server Component（データ取得）
-│   │   └── migration/
-│   │       └── page.tsx           # Server Component
+│   │   ├── migration/
+│   │   │   └── page.tsx           # Server Component（移管申請）
+│   │   ├── students/
+│   │   │   └── add/
+│   │   │       └── page.tsx       # Server Component（生徒追加）
+│   │   └── admin/
+│   │       └── migration/
+│   │           └── page.tsx       # Server Component（管理者用移管管理）
 │   ├── (public)/                  # 認証不要なルートグループ
 │   │   ├── login/
 │   │   │   └── page.tsx           # Server Component + Client Form
-│   │   └── register/
-│   │       └── page.tsx           # Server Component + Client Form
+│   │   ├── register/
+│   │   │   └── page.tsx           # Server Component + Client Form
+│   │   ├── student-login/
+│   │   │   └── page.tsx           # Server Component（生徒ログイン）
+│   │   └── reset-password/
+│   │       └── page.tsx           # Server Component（パスワードリセット）
 │   ├── api/
 │   │   ├── auth/
-│   │   │   ├── callback/
-│   │   │   │   └── route.ts       # Route Handler（認証コールバック）
-│   │   │   └── signout/
-│   │   │       └── route.ts       # Route Handler（サインアウト）
+│   │   │   └── callback/
+│   │   │       └── route.ts       # Route Handler（認証コールバック）
 │   │   └── migration/
-│   │       └── route.ts           # Route Handler（移管API）
+│   │       └── execute/
+│   │           └── route.ts       # Route Handler（移管実行API）
+│   ├── error.tsx                  # エラーバウンダリ
+│   ├── not-found.tsx              # 404ページ
 │   ├── layout.tsx                 # Root Layout（Provider設定）
 │   └── page.tsx                    # Home Page
 ├── components/
 │   ├── server/                    # Server Components
-│   │   ├── AuthStatus.tsx
-│   │   └── UserProfile.tsx
+│   │   ├── Navigation.tsx
+│   │   ├── UserProfile.tsx
+│   │   ├── SessionInfo.tsx
+│   │   ├── FamilyInfo.tsx
+│   │   ├── MigrationStatus.tsx
+│   │   └── MigrationAdminPanel.tsx
 │   └── client/                    # Client Components
 │       ├── LoginForm.tsx          # "use client"
-│       └── LogoutButton.tsx       # "use client"
+│       ├── RegisterForm.tsx
+│       ├── StudentLoginForm.tsx
+│       ├── StudentForm.tsx        # インライン生徒追加
+│       ├── StudentAddForm.tsx     # 専用ページ生徒追加
+│       ├── LogoutButton.tsx
+│       ├── LogoutButtonSmall.tsx
+│       ├── MigrationRequestForm.tsx
+│       └── MigrationActionButtons.tsx
 ├── lib/
 │   ├── supabase/
 │   │   ├── server.ts              # Server-side Supabaseクライアント
 │   │   ├── client.ts              # Client-side Supabaseクライアント
+│   │   ├── admin.ts               # Supabase Admin API ユーティリティ
 │   │   └── middleware.ts          # ミドルウェア用ヘルパー
 │   └── auth/
-│       └── actions.ts             # Server Actions
+│       ├── actions.ts             # Server Actions（認証）
+│       └── migration.ts           # Server Actions（移管）
+├── types/
+│   ├── auth.ts                    # 認証関連の型定義
+│   └── supabase.ts               # Supabase型定義
 └── middleware.ts                   # 最小限のミドルウェア
 ```
 
-## 実装する主要機能
+## 実装済み主要機能
 
-### 1. 認証機能（App Router準拠）
+### 1. 認証機能（App Router準拠） ✅実装済み
 
 #### 保護者・指導者認証
 | 機能 | 実装方法 | コンポーネント種別 |
@@ -116,13 +143,13 @@ studyspark-auth-test/
 | ログアウト | Server Actions | Client Component |
 
 #### 生徒認証（カスタム実装）
-- ログインID（ひらがな+数字）を仮想メールアドレスに変換
-- 例: "たろう2015" → "たろう2015@studyspark.local"
+- ログインID（英数字のみ）を仮想メールアドレスに変換
+- 例: "taro2015" → "taro2015@studyspark.local"
 - Supabase Authの仕組みを活用しつつ、生徒向けUIを提供
 - 簡易パスワード（4文字以上）
-- 保護者による再設定機能
+- 保護者による生徒アカウント作成・管理機能
 
-### 2. アカウント管理
+### 2. アカウント管理 ✅実装済み
 
 #### 初期登録フロー
 1. 保護者アカウント作成（エイリアス or 実メール）
@@ -137,7 +164,7 @@ studyspark-auth-test/
 5. 新メール確認（保護者）
 6. データ引き継ぎ確認（システム）
 
-### 3. 検証用ダッシュボード
+### 3. 検証用ダッシュボード ✅実装済み
 
 最小限の情報表示：
 - ユーザー情報（ID、メール/ログインID、役割、家族ID）
@@ -243,7 +270,26 @@ export async function signInStudent(formData: FormData) {
   }
   
   revalidatePath('/', 'layout')
-  redirect('/student/dashboard')
+  redirect('/dashboard')  // 生徒も共通のダッシュボードへ
+}
+
+// 生徒アカウント作成（保護者のみ）
+export async function createStudentAccount(formData: FormData) {
+  const loginId = formData.get('loginId') as string
+  const password = formData.get('password') as string
+  // ... 省略
+  
+  // loginIdのバリデーション（英数字のみ）
+  const loginIdPattern = /^[a-zA-Z0-9]+$/
+  if (!loginIdPattern.test(loginId)) {
+    return { error: 'ログインIDは英数字のみで入力してください' }
+  }
+  
+  // 仮想メールアドレス生成
+  const virtualEmail = `${loginId}@studyspark.local`
+  
+  // Supabase Admin APIを使用して生徒アカウントを作成
+  // ... 実装コード
 }
 ```
 
@@ -255,7 +301,7 @@ export async function signInStudent(formData: FormData) {
 ```sql
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  family_id TEXT UNIQUE NOT NULL DEFAULT 'FAM-' || substr(gen_random_uuid()::text, 1, 8),
+  family_id TEXT DEFAULT 'FAM-' || substr(gen_random_uuid()::text, 1, 8),
   display_name TEXT,
   avatar_id TEXT,
   role TEXT CHECK (role IN ('admin', 'parent', 'teacher', 'student')) NOT NULL,
@@ -268,6 +314,7 @@ CREATE TABLE profiles (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
+-- 注意: family_idのUNIQUE制約は削除（複数ユーザーが同じ家族に属するため）
 ```
 
 #### public.parent_student_relations
@@ -298,10 +345,29 @@ CREATE TABLE email_migration_logs (
 );
 ```
 
+#### public.audit_logs
+```sql
+CREATE TABLE audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  action TEXT NOT NULL,
+  details JSONB,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+```
+
 ### Row Level Security (RLS)
-- ユーザーは自分のプロファイルのみ閲覧可能
-- 保護者は家族内の情報を管理可能
-- 管理者は移管処理を承認可能
+- ユーザーは自分のプロファイルのみ閲覧・更新可能
+- 保護者は家族内の生徒情報を管理可能
+- 管理者は移管処理を承認・実行可能
+- トリガー関数はSECURITY DEFINERで実行（RLSバイパス）
+
+#### RLS設定の注意点
+- 無限再帰を避けるため、管理者ポリシーは慎重に設計
+- プロファイル作成時はトリガー関数でRLSを一時的に無効化
+- Service Roleは全アクセス権限を持つ
 
 ## Gmailエイリアス運用
 
@@ -331,6 +397,53 @@ EMAIL_ALIAS_PREFIX=admin+
 - admin+family001@gmail.com # 山田家
 - admin+family002@gmail.com # 鈴木家
 - admin+family003@gmail.com # 田中家
+```
+
+## 追加実装機能
+
+### 4. 生徒アカウント管理機能 ✅実装済み
+- 保護者による生徒アカウント作成（/students/add）
+- ログインID（英数字）による認証
+- 家族ID（family_id）による関連付け
+- 氏名・ふりがなの管理
+
+### 5. メール移管管理機能 ✅実装済み
+- 移管申請（/migration）
+- 管理者による承認・拒否（/admin/migration）
+- Supabase Admin APIによる実際のメールアドレス更新
+- 監査ログの記録
+
+### 6. ナビゲーション機能 ✅実装済み
+- ロール別メニュー表示
+- 保護者：生徒追加リンク
+- 管理者：移管管理リンク
+- ロールバッジ表示
+
+## Supabaseマイグレーション
+
+### 実行済みマイグレーションファイル
+1. `01_create_tables.sql` - 基本テーブル作成
+2. `02_row_level_security.sql` - RLS設定
+3. `03_auth_triggers.sql` - 自動プロファイル作成トリガー
+4. `04_fix_profiles.sql` - プロファイル修正
+5. `05_fix_rls_recursion.sql` - RLS無限再帰問題の修正
+6. `06_create_admin_user.sql` - 管理者ユーザー作成スクリプト
+
+### RLS修正のポイント
+```sql
+-- 無限再帰を避ける最小限のポリシー
+CREATE POLICY "Users can view own profile" ON public.profiles
+  FOR SELECT USING (auth.uid() = id);
+
+-- トリガー関数にSECURITY DEFINERを追加
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER 
+SECURITY DEFINER  -- RLSをバイパス
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+-- 関数本体
+$$;
 ```
 
 ## Route Handlers 実装
@@ -573,17 +686,95 @@ export function LoginForm() {
 - セッションエラー > 5%
 - DB接続エラー > 1%
 
+## 環境構築手順
+
+### 1. プロジェクトセットアップ
+```bash
+# リポジトリクローン
+git clone https://github.com/kazuyakurashima/studyspark-auth-test.git
+cd studyspark-auth-test
+
+# 依存関係インストール
+npm install
+
+# 環境変数設定
+cp .env.example .env.local
+# .env.localを編集してSupabase認証情報を設定
+```
+
+### 2. Supabaseセットアップ
+1. Supabaseプロジェクトを作成
+2. SQL Editorで以下のマイグレーションを順番に実行：
+   - `supabase/migrations/01_create_tables.sql`
+   - `supabase/migrations/02_row_level_security.sql`
+   - `supabase/migrations/03_auth_triggers.sql`
+   - `supabase/migrations/05_fix_rls_recursion.sql`
+
+### 3. 管理者アカウント作成
+```sql
+UPDATE public.profiles 
+SET role = 'admin', updated_at = NOW()
+WHERE id = (
+  SELECT id FROM auth.users 
+  WHERE email = 'your-email@gmail.com'
+);
+```
+
+### 4. 開発サーバー起動
+```bash
+npm run dev
+# http://localhost:3000 でアクセス
+```
+
+## テスト手順
+
+### 1. 保護者アカウントのテスト
+1. `/register` - 新規登録
+2. メール確認
+3. `/login` - ログイン
+4. `/dashboard` - ダッシュボード確認
+
+### 2. 生徒アカウントのテスト
+1. 保護者でログイン
+2. `/students/add` - 生徒追加
+3. ログアウト
+4. `/student-login` - 生徒ログイン（英数字ID）
+
+### 3. メール移管のテスト
+1. 保護者でログイン
+2. `/migration` - 移管申請
+3. 管理者でログイン
+4. `/admin/migration` - 申請承認・実行
+
+### 4. 動作確認項目
+- [ ] 保護者登録・ログイン
+- [ ] 生徒アカウント作成
+- [ ] 生徒ログイン（英数字ID）
+- [ ] メール移管申請
+- [ ] 管理者による承認・実行
+- [ ] ロール別ナビゲーション表示
+- [ ] RLSによるアクセス制御
+- [ ] エラーハンドリング
+
 ## デプロイメント
 
 ### Vercel デプロイ
-- 環境変数の設定
-- Supabase URLとキーの設定
-- カスタムドメインの設定（本番環境）
+```bash
+# Vercel CLIインストール
+npm i -g vercel
 
-### 環境変数
-```env
+# デプロイ
+vercel
+
+# 環境変数設定（Vercelダッシュボードで設定）
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 NEXT_PUBLIC_SITE_URL
 ```
+
+### 本番環境設定
+- カスタムドメインの設定
+- SSL証明書の自動設定
+- 環境変数の本番用設定
+- Supabase本番プロジェクトとの連携

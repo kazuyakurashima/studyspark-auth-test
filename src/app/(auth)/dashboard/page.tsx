@@ -24,10 +24,12 @@ export default async function DashboardPage() {
 
   if (profileError || !existingProfile) {
     // プロファイルが存在しない場合は作成を試みる
+    const familyId = `FAM-${Math.random().toString(36).substring(2, 10)}`
     const { data: newProfile, error: insertError } = await supabase
       .from('profiles')
       .insert({
         id: user.id,
+        family_id: familyId,
         display_name: user.email?.split('@')[0] || 'ユーザー',
         role: 'parent'
       })
@@ -56,6 +58,21 @@ export default async function DashboardPage() {
     profile = newProfile
   } else {
     profile = existingProfile
+    
+    // 既存プロファイルにfamily_idがない場合は更新
+    if (!profile.family_id) {
+      const familyId = `FAM-${Math.random().toString(36).substring(2, 10)}`
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update({ family_id: familyId })
+        .eq('id', user.id)
+        .select()
+        .single()
+      
+      if (!updateError && updatedProfile) {
+        profile = updatedProfile
+      }
+    }
   }
 
   if (!profile) {

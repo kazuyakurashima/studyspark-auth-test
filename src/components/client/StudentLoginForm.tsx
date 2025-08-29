@@ -31,8 +31,8 @@ export function StudentLoginForm() {
             type="text"
             required
             className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-            placeholder="ログインID（ひらがな + 数字）"
-            pattern="[ぁ-ん]+[0-9]+"
+            placeholder="ログインID（英数字）"
+            pattern="[a-zA-Z0-9]+"
           />
         </div>
         <div>
@@ -69,7 +69,7 @@ export function StudentLoginForm() {
       
       <div className="text-sm text-gray-600">
         <p className="text-center">
-          ログインIDの例：たろう2015、はなこ2016
+          ログインIDの例：taro2015、hanako2016、student123
         </p>
       </div>
     </form>

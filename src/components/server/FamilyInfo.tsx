@@ -8,13 +8,32 @@ interface FamilyInfoProps {
 export async function FamilyInfo({ familyId }: FamilyInfoProps) {
   const supabase = createClient()
   
-  // 家族内の生徒を取得
-  const { data: students } = await supabase
+  if (!familyId) {
+    return (
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">
+            家族構成
+          </h2>
+          <p className="text-red-500 text-sm">
+            家族IDが設定されていません。管理者にお問い合わせください。
+          </p>
+        </div>
+      </div>
+    )
+  }
+  
+  // 家族内の生徒を取得（RLSポリシーが修正されたため、Service Role Keyは不要）
+  const { data: students, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('family_id', familyId)
     .eq('role', 'student')
     .order('created_at', { ascending: true })
+  
+  if (error) {
+    console.error('FamilyInfo - Error fetching students:', error)
+  }
 
   return (
     <div className="bg-white shadow rounded-lg">

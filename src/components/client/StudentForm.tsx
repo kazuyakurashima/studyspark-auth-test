@@ -23,6 +23,10 @@ export function StudentForm() {
         setIsOpen(false)
         // フォームリセット
         ;(document.getElementById('studentForm') as HTMLFormElement)?.reset()
+        // ページをリフレッシュして新しい生徒を表示
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
       }
     })
   }
@@ -52,11 +56,12 @@ export function StudentForm() {
               type="text"
               id="loginId"
               name="loginId"
-              placeholder="たろう2015"
+              placeholder="taro2015"
               required
+              pattern="[a-zA-Z0-9]+"
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
-            <p className="mt-1 text-xs text-gray-500">ひらがな + 数字で入力してください</p>
+            <p className="mt-1 text-xs text-gray-500">英数字のみで入力してください</p>
           </div>
 
           <div>

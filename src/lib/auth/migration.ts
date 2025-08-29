@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { updateUserEmailWithAdmin } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 
@@ -186,23 +187,12 @@ export async function executeMigration(requestId: string) {
   
   try {
     // Supabase Admin API を使用してメールアドレス更新
-    const response = await fetch('/api/migration/execute', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId: migration.user_id,
-        newEmail: migration.new_email,
-        requestId: requestId
-      })
+    const result = await updateUserEmailWithAdmin({
+      userId: migration.user_id,
+      newEmail: migration.new_email
     })
     
-    const result = await response.json()
-    
-    if (!response.ok || result.error) {
-      throw new Error(result.error || 'メール更新に失敗しました')
-    }
+    console.log('Successfully updated user email:', result)
     
     // 移管完了を記録
     await supabase

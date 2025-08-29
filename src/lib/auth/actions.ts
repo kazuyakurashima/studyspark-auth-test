@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createUserWithAdmin, upsertProfile } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
@@ -97,7 +98,24 @@ export async function createStudentAccount(formData: FormData) {
   const lastNameKana = formData.get('lastNameKana') as string
   const firstNameKana = formData.get('firstNameKana') as string
   
+  // loginIdのバリデーション（英数字のみ）
+  const loginIdPattern = /^[a-zA-Z0-9]+$/
+  if (!loginIdPattern.test(loginId)) {
+    return { error: 'ログインIDは英数字のみで入力してください' }
+  }
+  
   const supabase = createClient()
+  
+  // loginIdの重複チェック
+  const { data: existingStudent } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('login_id', loginId)
+    .maybeSingle()
+  
+  if (existingStudent) {
+    return { error: 'このログインIDは既に使用されています' }
+  }
   
   // 現在のユーザーを取得
   const { data: { user } } = await supabase.auth.getUser()
@@ -117,14 +135,87 @@ export async function createStudentAccount(formData: FormData) {
     return { error: '保護者アカウントでログインしてください' }
   }
   
+  // familyIdを取得（フォームから渡されている場合）
+  const familyId = formData.get('familyId') as string || parentProfile.family_id
+  
   // 仮想メールアドレス生成
   const virtualEmail = `${loginId}@studyspark.local`
   
-  // TODO: 実際の実装では、Supabase Admin APIを使用して生徒アカウントを作成
-  // ここではダミー実装として成功を返す
-  return {
-    success: true,
-    message: `生徒アカウント作成機能は実装準備中です（ログインID: ${loginId}）`
+  try {
+    // Supabase Admin APIを使用してユーザーを作成
+    const newStudent = await createUserWithAdmin({
+      email: virtualEmail,
+      password: password,
+      userMetadata: {
+        display_name: `${lastName} ${firstName}`,
+        role: 'student',
+        login_id: loginId,
+        last_name: lastName,
+        first_name: firstName,
+        last_name_kana: lastNameKana,
+        first_name_kana: firstNameKana
+      }
+    })
+    
+    // レスポンス構造を確認（userプロパティがない場合は直接idを使用）
+    const studentId = newStudent.user?.id || newStudent.id
+    
+    if (!studentId) {
+      console.error('Student ID not found in response:', newStudent)
+      return { error: '生徒アカウントのIDが取得できませんでした' }
+    }
+    
+    // プロファイルを作成/更新
+    const profileData = {
+      id: studentId,
+      family_id: familyId,
+      display_name: `${lastName} ${firstName}`,
+      role: 'student',
+      login_id: loginId,
+      last_name: lastName,
+      first_name: firstName,
+      last_name_kana: lastNameKana,
+      first_name_kana: firstNameKana
+    }
+    
+    await upsertProfile(profileData)
+    
+    
+    // 保護者と生徒の関連を作成（Service Role Key使用）
+    console.log('Creating parent-student relation:', { parent_id: user.id, student_id: studentId })
+    
+    const relationResponse = await fetch(`${supabaseUrl}/rest/v1/parent_student_relations`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+        'apikey': serviceRoleKey,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        parent_id: user.id,
+        student_id: studentId,
+        relation_type: 'parent'
+      })
+    })
+    
+    if (!relationResponse.ok) {
+      const relationError = await relationResponse.json()
+      console.error('Relation creation error:', relationError)
+    } else {
+      const relationData = await relationResponse.json()
+      console.log('Relation created successfully:', relationData)
+    }
+    
+    return {
+      success: true,
+      message: `生徒アカウントが作成されました（ログインID: ${loginId}）`
+    }
+  } catch (error) {
+    console.error('Student account creation exception:', error)
+    return { 
+      error: `生徒アカウント作成中にエラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}` 
+    }
   }
 }
 

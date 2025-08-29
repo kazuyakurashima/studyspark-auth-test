@@ -28,10 +28,10 @@ export function Navigation({ user, profile }: NavigationProps) {
               </Link>
               {profile?.role === 'parent' && (
                 <Link
-                  href="/dashboard/parent"
+                  href="/students/add"
                   className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                 >
-                  家族管理
+                  生徒追加
                 </Link>
               )}
               {profile?.role === 'student' && (
@@ -49,6 +49,22 @@ export function Navigation({ user, profile }: NavigationProps) {
                 >
                   メール移管
                 </Link>
+              )}
+              {profile?.role === 'admin' && (
+                <>
+                  <Link
+                    href="/admin/migration"
+                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                  >
+                    移管管理
+                  </Link>
+                  <Link
+                    href="/debug"
+                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                  >
+                    デバッグ
+                  </Link>
+                </>
               )}
             </div>
           </div>

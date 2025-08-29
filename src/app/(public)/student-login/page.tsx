@@ -10,7 +10,7 @@ export default function StudentLoginPage() {
             生徒ログイン
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            ログインIDとパスワードでログイン
+            ログインID（英数字）とパスワードでログイン
           </p>
         </div>
         
